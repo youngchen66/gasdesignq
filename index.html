@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>瓦斯配管工程報價系統</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 SheetJS (xlsx.js) 用於生成 .xlsx 檔案 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+    </style>
+</head>
+<body class="bg-black text-gray-200">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-white">瓦斯配管工程報價系統</h1>
+            <p class="text-gray-400 mt-2">快速、專業、精準地建立您的工程報價單</p>
+        </header>
+
+        <main class="bg-gray-900 rounded-2xl shadow-lg p-6 sm:p-8">
+            <!-- 公司與客戶資訊 -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2 text-white">我方公司資訊</h2>
+                    <div class="space-y-3">
+                        <input type="text" id="myCompanyName" placeholder="公司名稱" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400" value="卓越燃氣工程有限公司">
+                        <input type="text" id="myCompanyAddress" placeholder="公司地址" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400" value="新北市板橋區文化路一段123號">
+                        <input type="text" id="myCompanyPhone" placeholder="聯絡電話" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400" value="02-8765-4321">
+                    </div>
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2 text-white">客戶資訊</h2>
+                    <div class="space-y-3">
+                        <input type="text" id="clientName" placeholder="客戶名稱" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400">
+                        <input type="text" id="projectName" placeholder="專案名稱" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400">
+                        <input type="text" id="quoteDate" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400">
+                        <input type="text" id="quoteNumber" placeholder="報價單號" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400">
+                    </div>
+                </div>
+            </section>
+
+            <!-- 報價項目 -->
+            <section>
+                <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                    <h2 class="text-xl font-semibold text-white">報價項目明細</h2>
+                    <button onclick="openDbModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md transition-colors text-sm">
+                        ⚙️ 管理資料庫
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[600px]" id="quoteItemsTable">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-400">項目描述</th>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-400 w-24">數量</th>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-400 w-24">單位</th>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-400 w-32">單價</th>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-400 w-32">小計</th>
+                                <th class="p-3 text-center text-sm font-semibold text-gray-400 w-16">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quoteItemsBody">
+                            <!-- 項目將由 JavaScript 動態加入 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 flex flex-wrap gap-4">
+                    <button onclick="addItem('material')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                        ＋ 新增材料
+                    </button>
+                    <button onclick="addItem('labor')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                        ＋ 新增工項
+                    </button>
+                </div>
+            </section>
+
+            <!-- 金額計算 -->
+            <section class="mt-8 flex justify-end">
+                <div class="w-full max-w-sm space-y-3 text-gray-300">
+                    <div class="flex justify-between">
+                        <span class="font-semibold">合計 (未稅)</span>
+                        <span id="subtotal" class="font-semibold">NT$ 0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold">營業稅 (5%)</span>
+                        <span id="tax" class="font-semibold">NT$ 0</span>
+                    </div>
+                    <hr class="border-gray-700">
+                    <div class="flex justify-between text-xl font-bold text-white">
+                        <span>總計 (含稅)</span>
+                        <span id="grandTotal">NT$ 0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 備註與操作 -->
+            <section class="mt-8 border-t border-gray-700 pt-6">
+                 <h2 class="text-xl font-semibold mb-4 text-white">備註</h2>
+                 <textarea id="notes" class="w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white placeholder-gray-400" rows="3" placeholder="請在此輸入報價條款或備註事項..."></textarea>
+            </section>
+
+            <footer class="mt-8 text-center flex flex-wrap justify-center gap-4">
+                <button onclick="exportQuoteExcel()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-colors shadow-md">
+                    匯出客戶報價單 (Excel)
+                </button>
+                <button onclick="exportCostAnalysis()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-colors shadow-md">
+                    匯出成本分析 (Excel)
+                </button>
+            </footer>
+        </main>
+    </div>
+
+    <!-- 資料庫管理 Modal -->
+    <div id="dbModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="bg-gray-900 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700">
+            <div class="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
+                <h3 class="text-xl font-bold text-white">資料庫管理</h3>
+                <button onclick="closeDbModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 材料上傳 -->
+                <div class="border border-gray-700 p-4 rounded-lg">
+                    <h4 class="font-semibold text-lg mb-2 text-white">上傳材料庫</h4>
+                    <p class="text-xs text-gray-400 mb-3">
+                        請上傳 Excel (.xlsx) 檔案。<br>
+                        欄位順序: <code class="bg-gray-700 text-gray-300 p-1 rounded">類型,名稱,單位,價格,成本</code>
+                    </p>
+                    <input type="file" id="materialCsvInput" accept=".xlsx, .xls" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-900/50 file:text-blue-300 hover:file:bg-blue-900/75">
+                    <button onclick="handleFileUpload('material')" class="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">上傳材料</button>
+                </div>
+
+                <!-- 工項上傳 -->
+                <div class="border border-gray-700 p-4 rounded-lg">
+                    <h4 class="font-semibold text-lg mb-2 text-white">上傳工項庫</h4>
+                     <p class="text-xs text-gray-400 mb-3">
+                        請上傳 Excel (.xlsx) 檔案。<br>
+                        欄位順序: <code class="bg-gray-700 text-gray-300 p-1 rounded">名稱,單位,價格,成本</code>
+                    </p>
+                    <input type="file" id="laborCsvInput" accept=".xlsx, .xls" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-900/50 file:text-green-300 hover:file:bg-green-900/75">
+                    <button onclick="handleFileUpload('labor')" class="w-full mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">上傳工項</button>
+                </div>
+            </div>
+            
+            <div id="uploadStatus" class="mt-4 text-sm text-center h-5"></div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeDbModal()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md">完成</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- 資料庫 ---
+        let materialDB = [
+            { id: 'mat001', type: '管材', name: '不銹鋼壓接管 1/2"', unit: '米', price: 150, cost: 80 },
+            { id: 'mat002', type: '管材', name: '不銹鋼壓接管 3/4"', unit: '米', price: 220, cost: 120 },
+            { id: 'mat003', type: '閥類', name: '瓦斯球閥 1/2"', unit: '個', price: 400, cost: 250 },
+        ];
+
+        let laborDB = [
+            { id: 'lab001', name: '配管工程 (明管)', unit: '米', price: 500, cost: 250 },
+            { id: 'lab002', name: '壓力測試', unit: '式', price: 3000, cost: 1000 },
+            { id: 'lab003', name: '監工費', unit: '天', price: 2000, cost: 500 },
+        ];
+        
+        // --- 初始化 ---
+        window.onload = () => {
+            const today = new Date();
+            const dateString = `${today.getFullYear()}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getDate().toString().padStart(2, '0')}`;
+            document.getElementById('quoteDate').value = dateString;
+
+            const quoteNumber = `Q${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+            document.getElementById('quoteNumber').value = quoteNumber;
+
+            addItem('material');
+        };
+
+        // --- 核心功能 ---
+        function populateDropdown(selectElement, type) {
+            const db = type === 'material' ? materialDB : laborDB;
+            const options = db.map(item => `<option value="${item.id}">${item.name}</option>`).join('');
+            const placeholder = `<option value="">請選擇${type === 'material' ? '材料' : '工項'}...</option>`;
+            selectElement.innerHTML = placeholder + options;
+        }
+
+        function addItem(type) {
+            const tableBody = document.getElementById('quoteItemsBody');
+            const newRow = tableBody.insertRow();
+            newRow.className = 'border-b border-gray-700';
+            newRow.setAttribute('data-item-type', type);
+            newRow.setAttribute('data-cost', '0');
+
+            newRow.innerHTML = `
+                <td class="p-3">
+                    <select class="item-select w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white" onchange="updateItemDetails(this)">
+                    </select>
+                </td>
+                <td class="p-3"><input type="number" class="quantity w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white" value="1" min="0"></td>
+                <td class="p-3"><input type="text" class="unit w-full p-2 border rounded-md bg-gray-700 border-gray-600 text-gray-300" readonly></td>
+                <td class="p-3"><input type="number" class="price w-full p-2 border rounded-md bg-gray-800 border-gray-600 text-white"></td>
+                <td class="p-3"><input type="text" class="subtotal w-full p-2 border rounded-md bg-gray-700 border-gray-600 text-gray-300" readonly></td>
+                <td class="p-3 text-center">
+                    <button onclick="deleteItem(this)" class="text-red-500 hover:text-red-600 font-bold">✕</button>
+                </td>
+            `;
+            
+            populateDropdown(newRow.querySelector('.item-select'), type);
+
+            newRow.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('change', calculateTotals);
+                el.addEventListener('input', calculateTotals);
+            });
+            
+            calculateTotals();
+        }
+
+        function updateItemDetails(selectElement) {
+            const selectedId = selectElement.value;
+            const row = selectElement.closest('tr');
+            const type = row.getAttribute('data-item-type');
+            const db = type === 'material' ? materialDB : laborDB;
+            const selectedItem = db.find(item => item.id === selectedId);
+
+            if (selectedItem) {
+                row.querySelector('.unit').value = selectedItem.unit;
+                row.querySelector('.price').value = selectedItem.price;
+                row.setAttribute('data-cost', selectedItem.cost);
+            } else {
+                row.querySelector('.unit').value = '';
+                row.querySelector('.price').value = '';
+                row.setAttribute('data-cost', '0');
+            }
+            calculateTotals();
+        }
+
+        function deleteItem(buttonElement) {
+            const row = buttonElement.closest('tr');
+            row.remove();
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            let subtotal = 0;
+            const rows = document.getElementById('quoteItemsBody').rows;
+
+            for (let row of rows) {
+                const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+                const price = parseFloat(row.querySelector('.price').value) || 0;
+                const itemSubtotal = quantity * price;
+                row.querySelector('.subtotal').value = itemSubtotal.toFixed(0);
+                subtotal += itemSubtotal;
+            }
+
+            const tax = subtotal * 0.05;
+            const grandTotal = subtotal + tax;
+            const formatter = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 });
+
+            document.getElementById('subtotal').textContent = formatter.format(subtotal);
+            document.getElementById('tax').textContent = formatter.format(tax);
+            document.getElementById('grandTotal').textContent = formatter.format(grandTotal);
+        }
+
+        // --- 資料庫管理功能 ---
+        const dbModal = document.getElementById('dbModal');
+
+        function openDbModal() {
+            dbModal.classList.remove('hidden');
+            setTimeout(() => dbModal.classList.remove('opacity-0'), 10);
+        }
+
+        function closeDbModal() {
+            dbModal.classList.add('opacity-0');
+            setTimeout(() => {
+                dbModal.classList.add('hidden');
+                document.getElementById('uploadStatus').textContent = '';
+                document.getElementById('materialCsvInput').value = '';
+                document.getElementById('laborCsvInput').value = '';
+            }, 250);
+        }
+
+        function handleFileUpload(type) {
+            const fileInput = document.getElementById(type === 'material' ? 'materialCsvInput' : 'laborCsvInput');
+            const statusDiv = document.getElementById('uploadStatus');
+            
+            if (fileInput.files.length === 0) {
+                statusDiv.textContent = '請先選擇一個檔案。';
+                statusDiv.className = 'mt-4 text-sm text-center h-5 text-red-500';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                try {
+                    const newDB = parseExcelFile(arrayBuffer, type);
+                    if (type === 'material') {
+                        materialDB = newDB;
+                        statusDiv.textContent = `材料庫更新成功！共匯入 ${newDB.length} 筆資料。`;
+                    } else {
+                        laborDB = newDB;
+                        statusDiv.textContent = `工項庫更新成功！共匯入 ${newDB.length} 筆資料。`;
+                    }
+                    
+                    statusDiv.className = 'mt-4 text-sm text-center h-5 text-green-500';
+                    refreshAllDropdowns();
+                    calculateTotals();
+
+                    setTimeout(() => {
+                        closeDbModal();
+                    }, 1500);
+
+                } catch (error) {
+                    statusDiv.textContent = '檔案解析失敗：' + error.message;
+                    statusDiv.className = 'mt-4 text-sm text-center h-5 text-red-500';
+                }
+            };
+
+            reader.onerror = function() {
+                statusDiv.textContent = '讀取檔案時發生錯誤。';
+                statusDiv.className = 'mt-4 text-sm text-center h-5 text-red-500';
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseExcelFile(arrayBuffer, type) {
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            const newDB = [];
+            if (json.length <= 1) {
+                throw new Error('Excel 檔案為空或僅有標頭。');
+            }
+
+            for (let i = 1; i < json.length; i++) {
+                const row = json[i];
+                let newItem;
+
+                if (type === 'material') {
+                    if (row.length < 5) {
+                        throw new Error(`材料 Excel 第 ${i + 1} 行格式錯誤，應有 5 個欄位。`);
+                    }
+                    const [itemType, name, unit, price, cost] = row;
+                    if (typeof price !== 'number' || typeof cost !== 'number') {
+                        throw new Error(`第 ${i + 1} 行的價格或成本不是有效的數字。`);
+                    }
+                    newItem = { id: `mat${Date.now()}${i}`, type: itemType, name, unit, price, cost };
+                } else { // type === 'labor'
+                    if (row.length < 4) {
+                        throw new Error(`工項 Excel 第 ${i + 1} 行格式錯誤，應有 4 個欄位。`);
+                    }
+                    const [name, unit, price, cost] = row;
+                     if (typeof price !== 'number' || typeof cost !== 'number') {
+                        throw new Error(`第 ${i + 1} 行的價格或成本不是有效的數字。`);
+                    }
+                    newItem = { id: `lab${Date.now()}${i}`, name, unit, price, cost };
+                }
+                newDB.push(newItem);
+            }
+            return newDB;
+        }
+
+        function refreshAllDropdowns() {
+            const rows = document.getElementById('quoteItemsBody').rows;
+            for (let row of rows) {
+                const selectElement = row.querySelector('.item-select');
+                const type = row.getAttribute('data-item-type');
+                const currentValue = selectElement.value;
+                
+                populateDropdown(selectElement, type);
+                
+                if (Array.from(selectElement.options).some(opt => opt.value === currentValue)) {
+                    selectElement.value = currentValue;
+                } else {
+                    updateItemDetails(selectElement);
+                }
+            }
+        }
+
+        // --- 匯出功能 (XLSX) ---
+        function exportQuoteExcel() {
+            const myCompanyName = document.getElementById('myCompanyName').value;
+            const myCompanyAddress = document.getElementById('myCompanyAddress').value;
+            const myCompanyPhone = document.getElementById('myCompanyPhone').value;
+            const clientName = document.getElementById('clientName').value;
+            const projectName = document.getElementById('projectName').value;
+            const quoteDate = document.getElementById('quoteDate').value;
+            const quoteNumber = document.getElementById('quoteNumber').value;
+            const notes = document.getElementById('notes').value;
+
+            const ws_data = [
+                ["報價單", null, null, null, null],
+                ["公司名稱", myCompanyName, null, "客戶名稱", clientName],
+                ["公司地址", myCompanyAddress, null, "專案名稱", projectName],
+                ["聯絡電話", myCompanyPhone, null, "報價日期", quoteDate],
+                [null, null, null, "報價單號", quoteNumber],
+                [],
+                ["項目描述", "數量", "單位", "單價", "小計"]
+            ];
+
+            let subtotalNum = 0;
+            const rows = document.getElementById('quoteItemsBody').rows;
+            for (let row of rows) {
+                const select = row.querySelector('.item-select');
+                const description = select.options[select.selectedIndex].text;
+                const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+                const unit = row.querySelector('.unit').value;
+                const price = parseFloat(row.querySelector('.price').value) || 0;
+                const subtotal = parseFloat(row.querySelector('.subtotal').value) || 0;
+                subtotalNum += subtotal;
+                ws_data.push([description, quantity, unit, price, subtotal]);
+            }
+
+            const taxNum = subtotalNum * 0.05;
+            const grandTotalNum = subtotalNum + taxNum;
+
+            ws_data.push([]);
+            ws_data.push([null, null, null, "合計 (未稅)", subtotalNum]);
+            ws_data.push([null, null, null, "營業稅 (5%)", taxNum]);
+            ws_data.push([null, null, null, "總計 (含稅)", grandTotalNum]);
+            ws_data.push([]);
+            ws_data.push(["備註", notes]);
+
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            ws['!cols'] = [{wch:40}, {wch:10}, {wch:10}, {wch:15}, {wch:15}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "報價單");
+            XLSX.writeFile(wb, `報價單-${quoteNumber}.xlsx`);
+        }
+
+        function exportCostAnalysis() {
+            const quoteNumber = document.getElementById('quoteNumber').value;
+            const ws_data = [
+                ["項目描述", "數量", "單位", "報價單價", "報價小計", "單位成本", "總成本"]
+            ];
+
+            let totalRevenue = 0;
+            let totalCost = 0;
+            
+            const rows = document.getElementById('quoteItemsBody').rows;
+            for (let row of rows) {
+                const select = row.querySelector('.item-select');
+                const description = select.options[select.selectedIndex].text;
+                const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+                const unit = row.querySelector('.unit').value;
+                const price = parseFloat(row.querySelector('.price').value) || 0;
+                const subtotal = quantity * price;
+                const cost = parseFloat(row.getAttribute('data-cost')) || 0;
+                const itemTotalCost = quantity * cost;
+
+                totalRevenue += subtotal;
+                totalCost += itemTotalCost;
+
+                ws_data.push([description, quantity, unit, price, subtotal, cost, itemTotalCost]);
+            }
+
+            const profit = totalRevenue - totalCost;
+
+            ws_data.push([]);
+            ws_data.push(["總報價 (未稅)", totalRevenue]);
+            ws_data.push(["總成本", totalCost]);
+            ws_data.push(["毛利", profit]);
+
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            ws['!cols'] = [{wch:40}, {wch:10}, {wch:10}, {wch:15}, {wch:15}, {wch:15}, {wch:15}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "成本分析");
+            XLSX.writeFile(wb, `成本分析-${quoteNumber}.xlsx`);
+        }
+
+    </script>
+</body>
+</html>
